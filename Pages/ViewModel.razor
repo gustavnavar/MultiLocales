@@ -1,0 +1,88 @@
+﻿@page "/viewmodel"
+@using MultiLocales.Models
+@using MultiLocales.Services
+@using GridBlazor
+@using GridShared;
+@using GridShared.Utility
+@using Microsoft.Extensions.Primitives
+@using System.Globalization
+@using System.Threading.Tasks
+@inject IOrderService orderService
+
+<h1>Grid Sample</h1>
+
+<p>
+    This page contains a basic grid
+</p>
+
+<p>
+    This component demonstrates a GridBlazor server-side grid. For more information, please see: <a href="https://github.com/gustavnavar/Grid.Blazor">https://github.com/gustavnavar/Grid.Blazor</a>
+</p>
+
+@if (_task.IsCompleted)
+{
+    <div class="row">
+        <div class="col-md-12">
+            <GridComponent T="OrderVM" Grid="@_grid"></GridComponent>
+        </div>
+    </div>
+}
+else
+{
+    <p><em>Loading...</em></p>
+}
+
+@code
+{
+    private CGrid<OrderVM> _grid;
+    private Task _task;
+
+    public static Action<IGridColumnCollection<OrderVM>> OrderColumns = c =>
+    {
+    /* Adding "OrderID" column: */
+        c.Add(o => o.OrderID).Titled("Number").SetWidth(100);
+
+    /* Adding "OrderDate" column: */
+        c.Add(o => o.OrderDate, "OrderCustomDate").Titled("Date")
+    .Format("{0:yyyy-MM-dd}").SetWidth(120);
+
+    /* Adding "CompanyName" column: */
+        c.Add(o => o.CompanyName).Titled("Company")
+    .SetWidth(250);
+
+    /* Adding "ContactName" column: */
+        c.Add(o => o.ContactName).Titled("ContactName").SetWidth(250);
+
+    /* Adding "Freight" column: */
+        c.Add(o => o.Freight)
+    .Titled("Freight")
+    .Format("{0:F}");
+
+    /* Adding "Vip customer" column: */
+        c.Add(o => o.IsVip).Titled("Is Vip").SetWidth(70).Css("hidden-xs") //hide on phones
+    .RenderValueAs(o => o.IsVip ? "Yes" : "No");
+    };
+
+    protected override void OnInitialized()
+    {
+        //CultureInfo.CurrentCulture = new CultureInfo(Startup.Culture);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var locale = CultureInfo.CurrentCulture;
+
+        var query = new QueryDictionary<StringValues>();
+        var client = new GridClient<OrderVM>(q => orderService.GetOrdersGridRows(OrderColumns, q),
+            query, false, "ordersGrid", OrderColumns, locale)
+            .Sortable()
+            .Filterable()
+            .WithMultipleFilters()
+            .WithGridItemsCount();
+
+        _grid = client.Grid;
+        // Set new items to grid
+        _task = client.UpdateGrid();
+        await _task;
+    }
+}
